@@ -11,6 +11,7 @@ const {
 const sqlite3 = require("sqlite3").verbose();
 const { TwitterApi, EUploadMimeType } = require("twitter-api-v2");
 const FileType = require("file-type");
+const { resolve } = require("node:path");
 
 let db = new sqlite3.Database("./database.db");
 db.run(`CREATE TABLE IF NOT EXISTS tweets (message_id TEXT)`);
@@ -55,6 +56,7 @@ client.once(Events.ClientReady, (c) => {
   console.log(`Ready! Logged in as ${c.user.tag}`);
 });
 
+
 client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
@@ -86,95 +88,51 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
     let author = reaction.message.author;
     let attachments = reaction.message.attachments;
     let count = reaction.count;
-    if (count >= 4) {
-      db.all(
+
+    try {
+      const channel = await client.channels.fetch(process.env.DISCORD_CHANNEL_ID);
+      if (count < 4) return;
+      const rows = await new Promise((res, rej) => db.all(
         `SELECT EXISTS(SELECT 1 FROM tweets WHERE message_id=$id)`,
         { $id: msgid },
-        (err, rows) => {
-          if (!err) {
-            if (Object.values(rows[0])[0]) {
-              console.log("Already posted");
-            } else {
-              try {
-                let mediaIds = [];
-                if (attachments.size > 4) {
-                  client.channels
-                    .fetch(process.env.DISCORD_CHANNEL_ID)
-                    .then((channel) => {
-                      channel.send(
-                        `4 or fewer images are permitted, ${author}.`
-                      );
-                    });
-                  return;
-                }
-                try {
-                  var bar = new Promise((resolve, reject) => {
-                    let i = 0;
-                    attachments.forEach(async (attachment) => {
-                      const response = await fetch(attachment.url);
-                      let file = Buffer.from(await response.arrayBuffer());
-                      const mediaId = await userClient.v1.uploadMedia(file, {
-                        mimeType: attachment.contentType,
-                      });
-                      mediaIds.push(mediaId);
-                      if (i == attachments.size - 1) {
-                        resolve();
-                      }
-                      i++;
-                    });
-                  });
-                  bar.then(() => {
-                    let t = {
-                      text: message,
-                    };
+        (err, rows) => err ? rej() : res(rows)
+      ));
 
-                    if (mediaIds.length > 0) {
-                      t["media"] = { media_ids: mediaIds };
-                    }
-                    userClient.v2.tweet(t);
-                  });
-                } catch (error) {
-                  client.channels
-                    .fetch(process.env.DISCORD_CHANNEL_ID)
-                    .then((channel) => {
-                      channel.send(
-                        `There was an error uploading the image(s): ${error}`
-                      );
-                    });
-                }
-              } catch (error) {
-                console.log(error);
-                channel.send(`There was an error posting the tweet: ${error}`);
-                return;
-              }
-              db.run(
-                `INSERT INTO tweets(message_id) VALUES(?)`,
-                [msgid],
-                function (error) {
-                  console.log("New tweet added with id " + this.lastID);
-                }
-              );
-              client.channels
-                .fetch(process.env.DISCORD_CHANNEL_ID)
-                .then((channel) => {
-                  channel.send(`Tweeted ${author}'s message: ${message}`);
-                });
-            }
-          } else {
-            console.log(err);
-          }
-        }
+      if (Object.values(rows[0])[0]) throw Error("Already posted!");
+
+      let mediaIds = [];
+      if (attachments.size > 4) {
+        await channel.send(`4 or fewer images are permitted, ${author}.`)
+        return;
+      }
+
+      for (let attachment of attachments) {
+        const response = await fetch(attachment.url);
+        const file = Buffer.from(await response.arrayBuffer());
+        const mediaId = await userClient.v1.uploadMedia(file, {
+          mimeType: attachment.contentType,
+        });
+        mediaIds.push(mediaId);
+      }
+
+      let tweet = {
+        text: message,
+      };
+
+      if (mediaIds.length > 0) tweet["media"] = { media_ids: mediaIds };
+      await userClient.v2.tweet(tweet);
+      console.log("twote");
+
+      db.run(
+        `INSERT INTO tweets(message_id) VALUES(?)`,
+        [msgid]
       );
+
+      await channel.send(`Tweeted ${author}'s message: ${message}`);
+    } catch (e) {
+      console.log(`ERR: ${e}`);
     }
   }
-
-  console.log(
-    `${reaction.message.author}'s message "${reaction.message.content}" gained a reaction!`
-  );
-
-  console.log(
-    `${reaction.count} user(s) have given the same reaction to this message!`
-  );
 });
 
 client.login(process.env.DISCORD_BOT_TOKEN);
