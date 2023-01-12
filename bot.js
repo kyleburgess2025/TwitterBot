@@ -163,10 +163,10 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
           }
         }
       );
+      client.channels.fetch(process.env.DISCORD_CHANNEL_ID).then((channel) => {
+        channel.send(`Tweeted ${author}'s message: ${message}`);
+      });
     }
-    client.channels.fetch(process.env.DISCORD_CHANNEL_ID).then((channel) => {
-      channel.send(`Tweeted ${author}'s message: ${message}`);
-    });
   }
 
   console.log(
