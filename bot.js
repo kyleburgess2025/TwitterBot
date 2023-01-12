@@ -91,7 +91,7 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
 
     try {
       const channel = await client.channels.fetch(process.env.DISCORD_CHANNEL_ID);
-      if (count < 4) return;
+      if (count < 5) return;
       const rows = await new Promise((res, rej) => db.all(
         `SELECT EXISTS(SELECT 1 FROM tweets WHERE message_id=$id)`,
         { $id: msgid },
