@@ -123,12 +123,16 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
                       i++;
                     });
                   });
-                  bar.then(() =>
-                    userClient.v2.tweet({
+                  bar.then(() => {
+                    let t = {
                       text: message,
-                      media: { media_ids: mediaIds },
-                    })
-                  );
+                    };
+
+                    if (mediaIds.length > 0) {
+                      t["media"] = { media_ids: mediaIds };
+                    }
+                    userClient.v2.tweet(t);
+                  });
                 } catch (error) {
                   client.channels
                     .fetch(process.env.DISCORD_CHANNEL_ID)
