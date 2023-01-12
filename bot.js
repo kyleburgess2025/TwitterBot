@@ -120,7 +120,9 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
       };
 
       if (mediaIds.length > 0) tweet["media"] = { media_ids: mediaIds };
-      await userClient.v2.tweet(tweet);
+      const sentTweet = await userClient.v2.tweet(tweet);
+      console.log(sentTweet);
+      const link = `https://twitter.com/squ1rrelCTF/status/${sentTweet.id}`;
       console.log("twote");
 
       db.run(
@@ -128,7 +130,7 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
         [msgid]
       );
 
-      await channel.send(`Tweeted ${author}'s message: ${message}`);
+      await channel.send(`Tweeted ${author}'s message: ${message} ${link}`);
     } catch (e) {
       console.log(`ERR: ${e}`);
     }
