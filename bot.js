@@ -143,7 +143,6 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
                       channel.send(`There was an error posting the tweet: ${error}`);
                     })
                   }
-                  
                 }
               } catch (error) {
                 console.log(error);
@@ -157,15 +156,15 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
                   console.log("New tweet added with id " + this.lastID);
                 }
               );
+              client.channels.fetch(process.env.DISCORD_CHANNEL_ID).then((channel) => {
+                channel.send(`Tweeted ${author}'s message: ${message}`);
+              });
             }
           } else {
             console.log(err);
           }
         }
       );
-      client.channels.fetch(process.env.DISCORD_CHANNEL_ID).then((channel) => {
-        channel.send(`Tweeted ${author}'s message: ${message}`);
-      });
     }
   }
 
