@@ -14,14 +14,10 @@ const FileType = require("file-type");
 
 let db = new sqlite3.Database("./database.db");
 db.run(`CREATE TABLE IF NOT EXISTS tweets (message_id TEXT)`);
-// db.run("DROP TABLE IF EXISTS tweets")
 
 const userClient = new TwitterApi({
   appKey: process.env.API_KEY,
   appSecret: process.env.SECRET_KEY,
-  // Following access tokens are not required if you are
-  // at part 1 of user-auth process (ask for a request token)
-  // or if you want a app-only client (see below)
   accessToken: process.env.ACCESS_TOKEN,
   accessSecret: process.env.ACCESS_SECRET,
 });
@@ -90,7 +86,7 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
     let author = reaction.message.author;
     let attachments = reaction.message.attachments;
     let count = reaction.count;
-    if (count >= 3) {
+    if (count >= 1) {
       db.all(
         `SELECT EXISTS(SELECT 1 FROM tweets WHERE message_id=$id)`,
         { $id: msgid },
@@ -112,32 +108,46 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
                   return;
                 }
                 if (attachments.size > 0) {
-                  var bar = new Promise((resolve, reject) => {
-                    let i = 0;
-                    attachments.forEach(async (attachment) => {
-                      const response = await fetch(attachment.url);
-                      let file = Buffer.from(await response.arrayBuffer());
-                      const mediaId = await userClient.v1.uploadMedia(file, {
-                        mimeType: attachment.contentType,
+                  try {
+                    var bar = new Promise((resolve, reject) => {
+                      let i = 0;
+                      attachments.forEach(async (attachment) => {
+                        const response = await fetch(attachment.url);
+                        let file = Buffer.from(await response.arrayBuffer());
+                        const mediaId = await userClient.v1.uploadMedia(file, {
+                          mimeType: attachment.contentType,
+                        });
+                        mediaIds.push(mediaId);
+                        if (i == attachments.size - 1) {
+                          resolve();
+                        }
+                        i++;
                       });
-                      mediaIds.push(mediaId);
-                      if (i == attachments.size - 1) {
-                        resolve();
-                      }
-                      i++;
                     });
-                  });
-                  bar.then(() =>
+                    bar.then(() =>
                     userClient.v2.tweet({
                       text: message,
                       media: { media_ids: mediaIds },
                     })
                   );
+                  } catch (error) {
+                    client.channels.fetch(process.env.DISCORD_CHANNEL_ID).then((channel) => {
+                      channel.send(`There was an error uploading the image(s): ${error}`);
+                    })
+                  }
                 } else {
-                  userClient.v2.tweet(message);
+                  try{
+                    userClient.v2.tweet(message);
+                  } catch (error) {
+                    client.channels.fetch(process.env.DISCORD_CHANNEL_ID).then((channel) => {
+                      channel.send(`There was an error posting the tweet: ${error}`);
+                    })
+                  }
+                  
                 }
               } catch (error) {
                 console.log(error);
+                channel.send(`There was an error posting the tweet: ${error}`);
                 return;
               }
               db.run(
@@ -159,12 +169,10 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
     });
   }
 
-  // Now the message has been cached and is fully available
   console.log(
     `${reaction.message.author}'s message "${reaction.message.content}" gained a reaction!`
   );
 
-  // The reaction is now also fully available and the properties will be reflected accurately:
   console.log(
     `${reaction.count} user(s) have given the same reaction to this message!`
   );
