@@ -86,7 +86,7 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
     let author = reaction.message.author;
     let attachments = reaction.message.attachments;
     let count = reaction.count;
-    if (count >= 1) {
+    if (count >= 3) {
       db.all(
         `SELECT EXISTS(SELECT 1 FROM tweets WHERE message_id=$id)`,
         { $id: msgid },
