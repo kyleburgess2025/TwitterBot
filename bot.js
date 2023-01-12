@@ -86,7 +86,7 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
     let author = reaction.message.author;
     let attachments = reaction.message.attachments;
     let count = reaction.count;
-    if (count >= 3) {
+    if (count >= 5) {
       db.all(
         `SELECT EXISTS(SELECT 1 FROM tweets WHERE message_id=$id)`,
         { $id: msgid },
@@ -107,42 +107,36 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
                     });
                   return;
                 }
-                if (attachments.size > 0) {
-                  try {
-                    var bar = new Promise((resolve, reject) => {
-                      let i = 0;
-                      attachments.forEach(async (attachment) => {
-                        const response = await fetch(attachment.url);
-                        let file = Buffer.from(await response.arrayBuffer());
-                        const mediaId = await userClient.v1.uploadMedia(file, {
-                          mimeType: attachment.contentType,
-                        });
-                        mediaIds.push(mediaId);
-                        if (i == attachments.size - 1) {
-                          resolve();
-                        }
-                        i++;
+                try {
+                  var bar = new Promise((resolve, reject) => {
+                    let i = 0;
+                    attachments.forEach(async (attachment) => {
+                      const response = await fetch(attachment.url);
+                      let file = Buffer.from(await response.arrayBuffer());
+                      const mediaId = await userClient.v1.uploadMedia(file, {
+                        mimeType: attachment.contentType,
                       });
+                      mediaIds.push(mediaId);
+                      if (i == attachments.size - 1) {
+                        resolve();
+                      }
+                      i++;
                     });
-                    bar.then(() =>
+                  });
+                  bar.then(() =>
                     userClient.v2.tweet({
                       text: message,
                       media: { media_ids: mediaIds },
                     })
                   );
-                  } catch (error) {
-                    client.channels.fetch(process.env.DISCORD_CHANNEL_ID).then((channel) => {
-                      channel.send(`There was an error uploading the image(s): ${error}`);
-                    })
-                  }
-                } else {
-                  try{
-                    userClient.v2.tweet(message);
-                  } catch (error) {
-                    client.channels.fetch(process.env.DISCORD_CHANNEL_ID).then((channel) => {
-                      channel.send(`There was an error posting the tweet: ${error}`);
-                    })
-                  }
+                } catch (error) {
+                  client.channels
+                    .fetch(process.env.DISCORD_CHANNEL_ID)
+                    .then((channel) => {
+                      channel.send(
+                        `There was an error uploading the image(s): ${error}`
+                      );
+                    });
                 }
               } catch (error) {
                 console.log(error);
@@ -156,9 +150,11 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
                   console.log("New tweet added with id " + this.lastID);
                 }
               );
-              client.channels.fetch(process.env.DISCORD_CHANNEL_ID).then((channel) => {
-                channel.send(`Tweeted ${author}'s message: ${message}`);
-              });
+              client.channels
+                .fetch(process.env.DISCORD_CHANNEL_ID)
+                .then((channel) => {
+                  channel.send(`Tweeted ${author}'s message: ${message}`);
+                });
             }
           } else {
             console.log(err);
