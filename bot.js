@@ -121,8 +121,7 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
 
       if (mediaIds.length > 0) tweet["media"] = { media_ids: mediaIds };
       const sentTweet = await userClient.v2.tweet(tweet);
-      console.log(sentTweet);
-      const link = `https://twitter.com/squ1rrelCTF/status/${sentTweet.id}`;
+      const link = `https://twitter.com/squ1rrelCTF/status/${sentTweet.data.id}`;
       console.log("twote");
 
       db.run(
